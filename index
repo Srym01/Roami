@@ -1,0 +1,820 @@
+import { useState, useRef, useEffect } from "react";
+
+const C = {
+  brand: "#C84B31", brandL: "#FEF0EC", brandD: "#7A2D1D",
+  sea: "#0D7A6A", seaL: "#E3F5F1", seaD: "#065B4E",
+  sky: "#2872B5", skyL: "#E7F1FB", skyD: "#1A578C",
+  sun: "#C98A08", sunL: "#FFF7E2", sunD: "#7D5605",
+  plum: "#7559A5", plumL: "#EFEBF6", plumD: "#503D74",
+  rose: "#BF4A74", roseL: "#FCEDF2", roseD: "#873257",
+  stone: "#68665F", stoneL: "#F3F2EF", stoneD: "#3B3A37",
+  green: "#2D8C3F", greenL: "#E8F5EB", greenD: "#1C5C28",
+};
+
+const TYPES = {
+  camper: { i: "🚐", l: "Camper", c: C.sea },
+  walking: { i: "🥾", l: "A piedi", c: C.brand },
+  car: { i: "🚗", l: "Auto", c: C.sky },
+  flight: { i: "✈️", l: "Volo", c: C.plum },
+  train: { i: "🚂", l: "Treno", c: C.sun },
+  bike: { i: "🚴", l: "Bici", c: C.rose },
+};
+
+const STAT = {
+  planning: { l: "In pianificazione", c: C.sun, bg: C.sunL },
+  confirmed: { l: "Confermato", c: C.sea, bg: C.seaL },
+  active: { l: "In corso", c: C.brand, bg: C.brandL },
+  completed: { l: "Completato", c: C.stone, bg: C.stoneL },
+};
+
+const EXP_CAT = {
+  transport: { i: "✈️", l: "Trasporti", c: C.sky },
+  food: { i: "🍽️", l: "Cibo", c: C.sun },
+  stay: { i: "🏨", l: "Alloggio", c: C.plum },
+  activity: { i: "🎯", l: "Attività", c: C.sea },
+  fuel: { i: "⛽", l: "Carburante", c: C.stone },
+  shopping: { i: "🛍️", l: "Shopping", c: C.rose },
+  other: { i: "📦", l: "Altro", c: C.stone },
+};
+
+const initMembers = [
+  { id: "u1", name: "Matteo", av: "M", c: C.sky, role: "owner" },
+  { id: "u2", name: "Cristina", av: "C", c: C.rose, role: "admin" },
+  { id: "u3", name: "Marco", av: "Ma", c: C.sea, role: "editor" },
+];
+
+const initExpenses = [
+  { id: "e1", tripId: "t1", desc: "Volo Milano-Bergen x2", amount: 360, paidBy: "u1", split: ["u1","u2"], date: "2026-07-12", cat: "transport" },
+  { id: "e2", tripId: "t1", desc: "Noleggio camper 10gg", amount: 890, paidBy: "u1", split: ["u1","u2"], date: "2026-07-12", cat: "transport" },
+  { id: "e3", tripId: "t1", desc: "Cena Pingvinen Bergen", amount: 90, paidBy: "u2", split: ["u1","u2"], date: "2026-07-12", cat: "food" },
+  { id: "e4", tripId: "t1", desc: "Camping Hardanger", amount: 25, paidBy: "u1", split: ["u1","u2"], date: "2026-07-13", cat: "stay" },
+  { id: "e5", tripId: "t1", desc: "Kayak fiordo x2", amount: 130, paidBy: "u2", split: ["u1","u2"], date: "2026-07-13", cat: "activity" },
+  { id: "e6", tripId: "t1", desc: "Spesa supermercato", amount: 65, paidBy: "u1", split: ["u1","u2"], date: "2026-07-13", cat: "food" },
+  { id: "e7", tripId: "t1", desc: "Benzina camper", amount: 40, paidBy: "u1", split: ["u1","u2"], date: "2026-07-14", cat: "fuel" },
+  { id: "e8", tripId: "t2", desc: "Volo Bologna-Praga x3", amount: 267, paidBy: "u1", split: ["u1","u2","u3"], date: "2026-09-05", cat: "transport" },
+  { id: "e9", tripId: "t2", desc: "Hotel Old Town 2 notti", amount: 190, paidBy: "u3", split: ["u1","u2","u3"], date: "2026-09-05", cat: "stay" },
+];
+
+const initTrips = [
+  {
+    id: "t1", title: "Norvegia in camper", type: "camper", status: "confirmed",
+    start: "2026-07-12", end: "2026-07-22", budget: 3200,
+    members: ["u1","u2"], cover: "🇳🇴",
+    days: [
+      { date: "2026-07-12", title: "Bergen — Arrivo", acts: [
+        { id:"a1", time:"10:00", name:"Volo Milano → Bergen", type:"transport", cost:180, icon:"✈️", notes:"Ryanair FR1234" },
+        { id:"a2", time:"14:00", name:"Ritiro camper McRent", type:"transport", cost:0, icon:"🚐", notes:"Prenotazione #CM8821" },
+        { id:"a3", time:"16:00", name:"Bryggen — centro storico", type:"activity", cost:0, icon:"🏘️", notes:"Patrimonio UNESCO" },
+        { id:"a4", time:"19:30", name:"Cena al Pingvinen", type:"food", cost:45, icon:"🍽️", notes:"Prenotare!" },
+      ]},
+      { date: "2026-07-13", title: "Fiordi e cascate", acts: [
+        { id:"a5", time:"08:00", name:"Guida verso Hardangerfjord", type:"transport", cost:30, icon:"🚐", notes:"3h — Route 7" },
+        { id:"a6", time:"11:30", name:"Cascata Vøringsfossen", type:"activity", cost:0, icon:"💧", notes:"182m" },
+        { id:"a7", time:"15:00", name:"Kayak nel fiordo", type:"activity", cost:65, icon:"🛶", notes:"Tour 2h" },
+        { id:"a8", time:"19:00", name:"Camping Hardanger", type:"stay", cost:25, icon:"⛺" },
+      ]},
+      { date: "2026-07-14", title: "Trolltunga", acts: [
+        { id:"a9", time:"06:00", name:"Trekking Trolltunga", type:"activity", cost:0, icon:"🥾", notes:"28km A/R" },
+        { id:"a10", time:"18:00", name:"Ritorno camper", type:"transport", cost:0, icon:"🚐" },
+        { id:"a11", time:"20:00", name:"Cena al camping", type:"food", cost:20, icon:"🍳" },
+      ]},
+    ],
+    reminders: [
+      { id:"r1", date:"2026-07-10", text:"Controllare documenti e assicurazione", done:true },
+      { id:"r2", date:"2026-07-11", text:"Spesa per i primi 3 giorni", done:false },
+      { id:"r3", date:"2026-07-12", text:"Check-in volo Ryanair", done:false },
+      { id:"r4", date:"2026-07-14", text:"Sveglia alle 5:00 per Trolltunga!", done:false },
+    ],
+    tickets: [
+      { id:"tk1", name:"Volo Milano → Bergen", code:"FR1234", ttype:"flight", date:"2026-07-12", status:"confirmed" },
+      { id:"tk2", name:"Camper McRent 10gg", code:"CM-8821", ttype:"vehicle", date:"2026-07-12", status:"confirmed" },
+      { id:"tk3", name:"Kayak Hardangerfjord", code:"FA-2290", ttype:"activity", date:"2026-07-13", status:"pending" },
+    ],
+    chat: [
+      { id:"m1", sender:"u1", text:"Campeggio fantastico vicino Trolltunga!", time:"10:32" },
+      { id:"m2", sender:"u2", text:"Prenotato kayak per il 13 🛶", time:"10:45" },
+      { id:"m3", sender:"u1", text:"Quanto costa a testa?", time:"10:47" },
+      { id:"m4", sender:"u2", text:"€65 a persona, tour guidato 2h", time:"10:50" },
+    ],
+  },
+  {
+    id: "t2", title: "Weekend a Praga", type: "flight", status: "planning",
+    start: "2026-09-05", end: "2026-09-07", budget: 600,
+    members: ["u1","u2","u3"], cover: "🇨🇿",
+    days: [{ date: "2026-09-05", title: "Arrivo e centro", acts: [
+      { id:"a20", time:"09:00", name:"Volo Bologna → Praga", type:"transport", cost:89, icon:"✈️" },
+      { id:"a21", time:"12:00", name:"Check-in hotel", type:"stay", cost:95, icon:"🏨" },
+      { id:"a22", time:"14:00", name:"Ponte Carlo", type:"activity", cost:0, icon:"🌉" },
+    ]}],
+    reminders: [{ id:"r5", date:"2026-09-03", text:"Stampare carte d'imbarco", done:false }],
+    tickets: [{ id:"tk5", name:"Volo BOL → PRG", code:"W6-441", ttype:"flight", date:"2026-09-05", status:"confirmed" }],
+    chat: [{ id:"m6", sender:"u3", text:"Trovato bar con birra a 1.5€! 🍺", time:"14:20" }],
+  },
+  {
+    id: "t3", title: "Cammino di Santiago", type: "walking", status: "planning",
+    start: "2026-10-01", end: "2026-10-14", budget: 1800,
+    members: ["u1"], cover: "🇪🇸", days: [], reminders: [], tickets: [], chat: [],
+  },
+];
+
+/* ─── UTILS ─── */
+const fmtD = d => new Date(d+"T00:00:00").toLocaleDateString("it-IT",{day:"numeric",month:"short"});
+const fmtDL = d => new Date(d+"T00:00:00").toLocaleDateString("it-IT",{day:"numeric",month:"long",year:"numeric"});
+const daysB = (a,b) => Math.ceil((new Date(b)-new Date(a))/864e5)+1;
+const gM = (id,members) => members.find(m=>m.id===id)||members[0];
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+/* ─── TINY UI ─── */
+const Pill = ({children,color,bg,s})=><span style={{fontSize:s?10:11,fontWeight:500,padding:s?"2px 7px":"3px 10px",borderRadius:6,background:bg||"var(--color-background-secondary)",color:color||"var(--color-text-secondary)",whiteSpace:"nowrap"}}>{children}</span>;
+
+const Av = ({m,sz=28,members})=>{const mm=typeof m==="string"?gM(m,members):m;return<div style={{width:sz,height:sz,borderRadius:"50%",background:mm.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:sz*.38,fontWeight:500,color:"#fff",flexShrink:0}}>{mm.av||mm.name?.[0]}</div>};
+
+const AvStack = ({ids,sz=22,members})=><div style={{display:"flex"}}>{ids.map((id,i)=><div key={id} style={{marginLeft:i?-7:0,zIndex:ids.length-i}}><Av m={id} sz={sz} members={members}/></div>)}</div>;
+
+const Btn = ({children,onClick,primary,small,full,disabled,danger})=><button disabled={disabled} onClick={onClick} style={{padding:small?"6px 14px":"10px 20px",borderRadius:10,border:primary||danger?"none":"0.5px solid var(--color-border-secondary)",background:danger?C.brand:primary?C.brand:"var(--color-background-primary)",color:primary||danger?"#fff":"var(--color-text-secondary)",fontSize:small?12:13,fontWeight:500,cursor:disabled?"not-allowed":"pointer",opacity:disabled?.5:1,width:full?"100%":undefined,transition:"all .15s"}}>{children}</button>;
+
+const Input = ({value,onChange,placeholder,type="text",style:s})=><input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{width:"100%",padding:"9px 13px",borderRadius:10,border:"0.5px solid var(--color-border-tertiary)",background:"var(--color-background-secondary)",fontSize:13,outline:"none",color:"var(--color-text-primary)",boxSizing:"border-box",...s}}/>;
+
+const Select = ({value,onChange,options})=><select value={value} onChange={e=>onChange(e.target.value)} style={{padding:"9px 13px",borderRadius:10,border:"0.5px solid var(--color-border-tertiary)",background:"var(--color-background-secondary)",fontSize:13,color:"var(--color-text-primary)",outline:"none",width:"100%"}}>{options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}</select>;
+
+const Card = ({children,style,onClick})=><div onClick={onClick} style={{background:"var(--color-background-primary)",borderRadius:14,border:"0.5px solid var(--color-border-tertiary)",padding:"1rem 1.1rem",cursor:onClick?"pointer":"default",transition:"all .15s",...style}}>{children}</div>;
+
+const Modal = ({open,onClose,title,children})=>{if(!open)return null;return<div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"center",justifyContent:"center"}}><div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.35)"}}/><div style={{position:"relative",background:"var(--color-background-primary)",borderRadius:18,padding:"1.5rem",width:"92%",maxWidth:440,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h3 style={{fontSize:17,fontWeight:500,margin:0}}>{title}</h3><button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--color-text-secondary)",padding:0}}>✕</button></div>{children}</div></div>};
+
+const Tabs = ({tabs,active,onChange})=><div style={{display:"flex",gap:2,padding:3,background:"var(--color-background-secondary)",borderRadius:12,marginBottom:16}}>{tabs.map(t=><button key={t.id} onClick={()=>onChange(t.id)} style={{flex:1,padding:"8px 4px",fontSize:11,borderRadius:10,border:"none",cursor:"pointer",background:active===t.id?"var(--color-background-primary)":"transparent",color:active===t.id?"var(--color-text-primary)":"var(--color-text-secondary)",fontWeight:active===t.id?500:400,boxShadow:active===t.id?"0 1px 3px rgba(0,0,0,0.05)":"none"}}>{t.i&&<span style={{marginRight:3}}>{t.i}</span>}{t.l}</button>)}</div>;
+
+const EmptyState = ({icon,title,sub,action,onAction})=><Card style={{textAlign:"center",padding:"2.5rem 1.5rem"}}><div style={{fontSize:36,marginBottom:10}}>{icon}</div><div style={{fontSize:15,fontWeight:500,marginBottom:5}}>{title}</div><div style={{fontSize:13,color:"var(--color-text-secondary)",marginBottom:action?16:0}}>{sub}</div>{action&&<Btn primary onClick={onAction}>{action}</Btn>}</Card>;
+
+const PremiumLock = ({feature})=><Card style={{textAlign:"center",padding:"1.5rem",borderColor:C.sun}}><div style={{fontSize:20,marginBottom:6}}>🔒</div><div style={{fontSize:13,fontWeight:500,marginBottom:4}}>Funzione Premium</div><div style={{fontSize:12,color:"var(--color-text-secondary)",marginBottom:12}}>{feature} è disponibile con il piano Plus o Pro</div><Btn primary small onClick={()=>{}}>Scopri i piani →</Btn></Card>;
+
+/* ═══════════ NAV BAR ═══════════ */
+const NavBar = ({page,setPage,setView})=>{
+  const nav=[{id:"home",i:"⬡",l:"Home"},{id:"trips",i:"◈",l:"Viaggi"},{id:"calendar",i:"▦",l:"Calendario"},{id:"expenses",i:"◆",l:"Spese"},{id:"profile",i:"◎",l:"Profilo"}];
+  return<div style={{display:"flex",background:"var(--color-background-secondary)",borderRadius:16,padding:4,gap:2,marginBottom:16}}>
+    {nav.map(n=><button key={n.id} onClick={()=>{setPage(n.id);setView(null)}} style={{flex:1,padding:"10px 4px",borderRadius:12,border:"none",cursor:"pointer",background:page===n.id?"var(--color-background-primary)":"transparent",color:page===n.id?C.brand:"var(--color-text-secondary)",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontSize:15,transition:"all .12s",boxShadow:page===n.id?"0 1px 4px rgba(0,0,0,0.06)":"none"}}><span>{n.i}</span><span style={{fontSize:10,fontWeight:page===n.id?500:400}}>{n.l}</span></button>)}
+  </div>
+};
+
+/* ═══════════ DASHBOARD ═══════════ */
+function HomePage({trips,expenses,members,setPage,setView,tier}){
+  const upcoming=trips.filter(t=>t.status!=="completed");
+  const next=upcoming[0];
+  const daysTo=next?daysB("2026-04-15",next.start):0;
+  const totalPending=trips.flatMap(t=>t.reminders).filter(r=>!r.done).length;
+  const totalExp=expenses.reduce((s,e)=>s+e.amount,0);
+
+  return<div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+      <div><h2 style={{fontSize:20,fontWeight:500,margin:0}}>Buongiorno, Matteo</h2><p style={{fontSize:13,color:"var(--color-text-secondary)",margin:"3px 0 0"}}>{upcoming.length} viaggi in programma</p></div>
+      <Pill color={tier==="free"?C.stoneD:tier==="plus"?C.skyD:C.brandD} bg={tier==="free"?C.stoneL:tier==="plus"?C.skyL:C.brandL}>{tier==="free"?"Free":tier==="plus"?"Plus":"Pro"}</Pill>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:18}}>
+      {[{l:"Partenza tra",v:`${daysTo}gg`,c:C.brand},{l:"Viaggi",v:upcoming.length,c:C.sea},{l:"Promemoria",v:totalPending,c:C.sun},{l:"Spese totali",v:`€${totalExp}`,c:C.sky}].map((s,i)=><div key={i} style={{background:"var(--color-background-secondary)",borderRadius:10,padding:"10px 12px"}}><div style={{fontSize:10,color:"var(--color-text-secondary)"}}>{s.l}</div><div style={{fontSize:18,fontWeight:500,color:s.c,marginTop:2}}>{s.v}</div></div>)}
+    </div>
+
+    {next&&<Card onClick={()=>{setView(next.id);setPage("trips")}} style={{marginBottom:16}}>
+      <div style={{display:"flex",gap:12,alignItems:"center"}}>
+        <div style={{width:50,height:50,borderRadius:14,background:C.seaL,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>{next.cover}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:15,fontWeight:500}}>{next.title}</div>
+          <div style={{fontSize:12,color:"var(--color-text-secondary)",marginTop:2}}>{fmtD(next.start)} → {fmtD(next.end)} · {daysB(next.start,next.end)} giorni</div>
+          <div style={{display:"flex",gap:5,marginTop:6,alignItems:"center"}}><Pill color={TYPES[next.type].c} s>{TYPES[next.type].i} {TYPES[next.type].l}</Pill><Pill color={STAT[next.status].c} bg={STAT[next.status].bg} s>{STAT[next.status].l}</Pill><AvStack ids={next.members} sz={18} members={members}/></div>
+        </div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:500,color:C.brand}}>{daysTo}</div><div style={{fontSize:9,color:"var(--color-text-tertiary)"}}>giorni</div></div>
+      </div>
+    </Card>}
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+      {trips.slice(1).map(t=><Card key={t.id} onClick={()=>{setView(t.id);setPage("trips")}} style={{padding:"12px"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{width:36,height:36,borderRadius:10,background:TYPES[t.type].c+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{t.cover}</div>
+          <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</div><div style={{fontSize:11,color:"var(--color-text-secondary)"}}>{fmtD(t.start)} · {TYPES[t.type].i}</div></div>
+        </div>
+      </Card>)}
+    </div>
+  </div>;
+}
+
+/* ═══════════ TRIP LIST ═══════════ */
+function TripList({trips,setView,onNew,onDelete,members}){
+  const [filter,setFilter]=useState("all");
+  const [menuOpen,setMenuOpen]=useState(null);
+  const filtered=filter==="all"?trips:trips.filter(t=>t.type===filter);
+
+  return<div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <h2 style={{fontSize:20,fontWeight:500,margin:0}}>I tuoi viaggi</h2>
+      <Btn primary small onClick={onNew}>+ Nuovo viaggio</Btn>
+    </div>
+    <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap",overflowX:"auto"}}>
+      <button onClick={()=>setFilter("all")} style={{padding:"5px 12px",fontSize:11,borderRadius:8,border:"none",cursor:"pointer",background:filter==="all"?C.brandL:"var(--color-background-secondary)",color:filter==="all"?C.brand:"var(--color-text-secondary)",fontWeight:filter==="all"?500:400}}>Tutti</button>
+      {Object.entries(TYPES).map(([k,v])=><button key={k} onClick={()=>setFilter(k)} style={{padding:"5px 12px",fontSize:11,borderRadius:8,border:"none",cursor:"pointer",background:filter===k?v.c+"22":"var(--color-background-secondary)",color:filter===k?v.c:"var(--color-text-secondary)",fontWeight:filter===k?500:400}}>{v.i} {v.l}</button>)}
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {filtered.map(t=><Card key={t.id} style={{position:"relative"}}>
+        <div style={{display:"flex",gap:12,alignItems:"center"}}>
+          <div onClick={()=>setView(t.id)} style={{display:"flex",gap:12,alignItems:"center",flex:1,cursor:"pointer"}}>
+            <div style={{width:48,height:48,borderRadius:14,background:TYPES[t.type].c+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{t.cover}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:15,fontWeight:500}}>{t.title}</div>
+              <div style={{fontSize:12,color:"var(--color-text-secondary)",marginTop:2}}>{fmtD(t.start)} → {fmtD(t.end)} · {daysB(t.start,t.end)}gg</div>
+              <div style={{display:"flex",gap:5,marginTop:6,alignItems:"center"}}><Pill color={TYPES[t.type].c} s>{TYPES[t.type].i} {TYPES[t.type].l}</Pill><Pill color={STAT[t.status].c} bg={STAT[t.status].bg} s>{STAT[t.status].l}</Pill><AvStack ids={t.members} sz={16} members={members}/></div>
+            </div>
+          </div>
+          <div style={{position:"relative"}}>
+            <button onClick={()=>setMenuOpen(menuOpen===t.id?null:t.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"var(--color-text-secondary)",padding:"4px 8px"}}>⋮</button>
+            {menuOpen===t.id&&<div style={{position:"absolute",right:0,top:32,background:"var(--color-background-primary)",border:"0.5px solid var(--color-border-tertiary)",borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",zIndex:50,minWidth:160,overflow:"hidden"}}>
+              {[{l:"✏️ Modifica",a:()=>{setView(t.id+"_edit");setMenuOpen(null)}},{l:"📋 Duplica",a:()=>setMenuOpen(null)},{l:"🗑️ Elimina",a:()=>{onDelete(t.id);setMenuOpen(null)},danger:true}].map((item,i)=><button key={i} onClick={item.a} style={{display:"block",width:"100%",padding:"10px 14px",border:"none",background:"none",cursor:"pointer",fontSize:13,textAlign:"left",color:item.danger?C.brand:"var(--color-text-primary)",borderTop:i?"0.5px solid var(--color-border-tertiary)":"none"}}>{item.l}</button>)}
+            </div>}
+          </div>
+        </div>
+      </Card>)}
+    </div>
+  </div>;
+}
+
+/* ═══════════ TRIP EDIT MODAL ═══════════ */
+function TripEditModal({trip,open,onClose,onSave}){
+  const [form,setForm]=useState({title:trip?.title||"",type:trip?.type||"flight",status:trip?.status||"planning",start:trip?.start||"",end:trip?.end||"",budget:trip?.budget||0,cover:trip?.cover||"🌍"});
+  useEffect(()=>{if(trip)setForm({title:trip.title,type:trip.type,status:trip.status,start:trip.start,end:trip.end,budget:trip.budget,cover:trip.cover})},[trip]);
+  const covers=["🌍","🇳🇴","🇮🇹","🇪🇸","🇫🇷","🇬🇷","🇵🇹","🇩🇪","🇬🇧","🇯🇵","🇺🇸","🇨🇿","🇭🇷","🇮🇸","🏔️","🏖️","🌋","🗻"];
+  return<Modal open={open} onClose={onClose} title={trip?"Modifica viaggio":"Nuovo viaggio"}>
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Titolo</label><Input value={form.title} onChange={v=>setForm({...form,title:v})} placeholder="Es: Norvegia in camper"/></div>
+      <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Icona</label><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{covers.map(c=><button key={c} onClick={()=>setForm({...form,cover:c})} style={{width:36,height:36,borderRadius:8,border:form.cover===c?`2px solid ${C.brand}`:"0.5px solid var(--color-border-tertiary)",background:form.cover===c?C.brandL:"var(--color-background-secondary)",fontSize:18,cursor:"pointer"}}>{c}</button>)}</div></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Tipo</label><Select value={form.type} onChange={v=>setForm({...form,type:v})} options={Object.entries(TYPES).map(([k,v])=>({v:k,l:v.i+" "+v.l}))}/></div>
+        <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Stato</label><Select value={form.status} onChange={v=>setForm({...form,status:v})} options={Object.entries(STAT).map(([k,v])=>({v:k,l:v.l}))}/></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Data partenza</label><Input type="date" value={form.start} onChange={v=>setForm({...form,start:v})}/></div>
+        <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Data ritorno</label><Input type="date" value={form.end} onChange={v=>setForm({...form,end:v})}/></div>
+      </div>
+      <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Budget (€)</label><Input type="number" value={form.budget} onChange={v=>setForm({...form,budget:Number(v)})}/></div>
+      <div style={{display:"flex",gap:8,marginTop:8}}><Btn primary full onClick={()=>{onSave(form);onClose()}}>Salva</Btn><Btn full onClick={onClose}>Annulla</Btn></div>
+    </div>
+  </Modal>;
+}
+
+/* ═══════════ TRIP DETAIL ═══════════ */
+function TripDetail({trip,setView,expenses,setExpenses,members,tier,onEdit,onUpdateTrip}){
+  const [tab,setTab]=useState("itinerary");
+  const [chatInput,setChatInput]=useState("");
+  const [chatMsgs,setChatMsgs]=useState(trip.chat);
+  const [reminders,setReminders]=useState(trip.reminders);
+  const [expModal,setExpModal]=useState(false);
+  const [editExp,setEditExp]=useState(null);
+  const chatEnd=useRef(null);
+  const tripExp=expenses.filter(e=>e.tripId===trip.id);
+  const totalSpent=tripExp.reduce((s,e)=>s+e.amount,0);
+
+  useEffect(()=>{if(chatEnd.current)chatEnd.current.scrollIntoView({behavior:"smooth"})},[chatMsgs]);
+
+  const actColors={transport:C.sky,activity:C.sea,food:C.sun,stay:C.plum};
+
+  const sendChat=()=>{if(!chatInput.trim())return;setChatMsgs([...chatMsgs,{id:uid(),sender:"u1",text:chatInput,time:new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}]);setChatInput("")};
+
+  /* Expense split calc */
+  const balances={};
+  trip.members.forEach(id=>{balances[id]=0});
+  tripExp.forEach(e=>{
+    const share=e.amount/e.split.length;
+    balances[e.paidBy]=(balances[e.paidBy]||0)+e.amount;
+    e.split.forEach(id=>{balances[id]=(balances[id]||0)-share});
+  });
+  const debts=[];
+  const debtors=Object.entries(balances).filter(([,v])=>v<-0.01).map(([id,v])=>({id,amount:-v})).sort((a,b)=>b.amount-a.amount);
+  const creditors=Object.entries(balances).filter(([,v])=>v>0.01).map(([id,v])=>({id,amount:v})).sort((a,b)=>b.amount-a.amount);
+  let di=0,ci=0;
+  const dd=[...debtors.map(d=>({...d}))],cc=[...creditors.map(c=>({...c}))];
+  while(di<dd.length&&ci<cc.length){
+    const pay=Math.min(dd[di].amount,cc[ci].amount);
+    if(pay>0.01)debts.push({from:dd[di].id,to:cc[ci].id,amount:Math.round(pay*100)/100});
+    dd[di].amount-=pay;cc[ci].amount-=pay;
+    if(dd[di].amount<0.01)di++;
+    if(cc[ci].amount<0.01)ci++;
+  }
+
+  const saveExpense=(data)=>{
+    if(editExp){
+      setExpenses(expenses.map(e=>e.id===editExp.id?{...e,...data}:e));
+    } else {
+      setExpenses([...expenses,{id:uid(),tripId:trip.id,...data}]);
+    }
+    setEditExp(null);
+  };
+
+  const deleteExpense=(id)=>setExpenses(expenses.filter(e=>e.id!==id));
+
+  const tabList=[
+    {id:"itinerary",l:"Itinerario",i:"◈"},
+    {id:"expenses",l:"Spese",i:"◆"},
+    {id:"reminders",l:"Promemoria",i:"◇"},
+    {id:"tickets",l:"Biglietti",i:"▤"},
+    {id:"chat",l:"Chat",i:"◎"},
+  ];
+
+  return<div>
+    <button onClick={()=>setView(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--color-text-secondary)",marginBottom:10,padding:0}}>← Torna ai viaggi</button>
+
+    {/* Header */}
+    <div style={{background:"var(--color-background-secondary)",borderRadius:16,padding:"16px 18px",marginBottom:14}}>
+      <div style={{display:"flex",gap:14,alignItems:"center"}}>
+        <div style={{width:54,height:54,borderRadius:16,background:"var(--color-background-primary)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,border:"0.5px solid var(--color-border-tertiary)"}}>{trip.cover}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{fontSize:18,fontWeight:500}}>{trip.title}</div><button onClick={onEdit} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"var(--color-text-secondary)"}}>✏️</button></div>
+          <div style={{fontSize:12,color:"var(--color-text-secondary)",marginTop:3}}>{fmtD(trip.start)} → {fmtD(trip.end)} · {daysB(trip.start,trip.end)}gg</div>
+          <div style={{display:"flex",gap:5,marginTop:6,alignItems:"center",flexWrap:"wrap"}}><Pill color={TYPES[trip.type].c} s>{TYPES[trip.type].i} {TYPES[trip.type].l}</Pill><Pill color={STAT[trip.status].c} bg={STAT[trip.status].bg} s>{STAT[trip.status].l}</Pill><AvStack ids={trip.members} sz={18} members={members}/></div>
+        </div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:12,color:"var(--color-text-secondary)"}}>Budget</div><div style={{fontSize:18,fontWeight:500}}>€{trip.budget}</div><div style={{fontSize:11,color:C.sea}}>€{totalSpent} spesi</div></div>
+      </div>
+      <div style={{marginTop:12}}><div style={{height:5,borderRadius:3,background:"var(--color-border-tertiary)"}}><div style={{height:5,borderRadius:3,background:totalSpent>trip.budget?C.brand:C.sea,width:`${Math.min((totalSpent/trip.budget)*100,100)}%`}}/></div><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--color-text-tertiary)",marginTop:3}}><span>{Math.round(totalSpent/trip.budget*100)}% usato</span><span>€{trip.budget-totalSpent} rimanenti</span></div></div>
+    </div>
+
+    <Tabs tabs={tabList} active={tab} onChange={setTab}/>
+
+    {/* ── ITINERARY ── */}
+    {tab==="itinerary"&&<div>
+      {trip.days.length===0?<EmptyState icon="🗺️" title="Nessun itinerario" sub="Inizia a pianificare aggiungendo i giorni" action="+ Aggiungi giorno" onAction={()=>{}}/>:
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {trip.days.map((day,di)=><Card key={di}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <div style={{width:30,height:30,borderRadius:8,background:C.brandL,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:500,color:C.brand}}>G{di+1}</div>
+              <div><div style={{fontSize:14,fontWeight:500}}>{day.title}</div><div style={{fontSize:11,color:"var(--color-text-secondary)"}}>{fmtD(day.date)}</div></div>
+            </div>
+            <div style={{fontSize:11,color:"var(--color-text-tertiary)"}}>{day.acts.length} att. · €{day.acts.reduce((s,a)=>s+a.cost,0)}</div>
+          </div>
+          <div style={{paddingLeft:18,position:"relative"}}>
+            <div style={{position:"absolute",left:5,top:4,bottom:4,width:1.5,background:"var(--color-border-tertiary)",borderRadius:1}}/>
+            {day.acts.map((act,ai)=><div key={ai} style={{display:"flex",gap:10,marginBottom:ai<day.acts.length-1?12:0,position:"relative"}}>
+              <div style={{width:12,height:12,borderRadius:"50%",background:actColors[act.type]||C.stone,border:"2px solid var(--color-background-primary)",position:"relative",zIndex:1,marginTop:3,flexShrink:0}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div><div style={{fontSize:13,fontWeight:500}}><span style={{marginRight:4}}>{act.icon}</span>{act.name}</div>{act.notes&&<div style={{fontSize:11,color:"var(--color-text-secondary)",marginTop:2}}>{act.notes}</div>}</div>
+                  <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}><div style={{fontSize:12,fontWeight:500,color:"var(--color-text-secondary)"}}>{act.time}</div>{act.cost>0&&<div style={{fontSize:11,color:C.sea}}>€{act.cost}</div>}</div>
+                </div>
+              </div>
+            </div>)}
+          </div>
+        </Card>)}
+        <button style={{padding:12,borderRadius:12,border:"1.5px dashed var(--color-border-secondary)",background:"transparent",color:"var(--color-text-secondary)",fontSize:13,cursor:"pointer"}}>+ Aggiungi giorno</button>
+      </div>}
+    </div>}
+
+    {/* ── EXPENSES + SPLIT ── */}
+    {tab==="expenses"&&<div>
+      {/* Summary */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+        <div style={{background:"var(--color-background-secondary)",borderRadius:10,padding:"10px 12px"}}><div style={{fontSize:10,color:"var(--color-text-secondary)"}}>Totale spese</div><div style={{fontSize:18,fontWeight:500}}>€{totalSpent}</div></div>
+        <div style={{background:"var(--color-background-secondary)",borderRadius:10,padding:"10px 12px"}}><div style={{fontSize:10,color:"var(--color-text-secondary)"}}>Budget</div><div style={{fontSize:18,fontWeight:500}}>€{trip.budget}</div></div>
+        <div style={{background:"var(--color-background-secondary)",borderRadius:10,padding:"10px 12px"}}><div style={{fontSize:10,color:"var(--color-text-secondary)"}}>Rimanente</div><div style={{fontSize:18,fontWeight:500,color:trip.budget-totalSpent>=0?C.sea:C.brand}}>€{trip.budget-totalSpent}</div></div>
+      </div>
+
+      {/* Category breakdown */}
+      <Card style={{marginBottom:14}}>
+        <div style={{fontSize:13,fontWeight:500,marginBottom:10}}>Spese per categoria</div>
+        {Object.entries(EXP_CAT).map(([k,v])=>{
+          const catTotal=tripExp.filter(e=>e.cat===k).reduce((s,e)=>s+e.amount,0);
+          if(catTotal===0)return null;
+          return<div key={k} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"0.5px solid var(--color-border-tertiary)"}}>
+            <span style={{fontSize:14}}>{v.i}</span><span style={{fontSize:12,flex:1}}>{v.l}</span>
+            <div style={{width:100,height:5,borderRadius:3,background:"var(--color-background-secondary)"}}><div style={{height:5,borderRadius:3,background:v.c,width:`${Math.min(catTotal/totalSpent*100,100)}%`}}/></div>
+            <span style={{fontSize:12,fontWeight:500,minWidth:50,textAlign:"right"}}>€{catTotal}</span>
+          </div>;
+        })}
+      </Card>
+
+      {/* Expense list */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontSize:14,fontWeight:500}}>Tutte le spese</div>
+        <Btn primary small onClick={()=>{setEditExp(null);setExpModal(true)}}>+ Nuova spesa</Btn>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+        {tripExp.length===0?<EmptyState icon="💸" title="Nessuna spesa" sub="Aggiungi la prima spesa del viaggio"/>:
+        tripExp.map(e=>{
+          const payer=gM(e.paidBy,members);
+          const cat=EXP_CAT[e.cat]||EXP_CAT.other;
+          return<Card key={e.id} style={{padding:"12px 14px"}}>
+            <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              <div style={{width:38,height:38,borderRadius:10,background:cat.c+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>{cat.i}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:500}}>{e.desc}</div>
+                <div style={{display:"flex",gap:6,marginTop:3,alignItems:"center",flexWrap:"wrap"}}>
+                  <div style={{display:"flex",gap:3,alignItems:"center"}}><Av m={e.paidBy} sz={16} members={members}/><span style={{fontSize:11,color:"var(--color-text-secondary)"}}>pagato da {payer.name}</span></div>
+                  <span style={{fontSize:10,color:"var(--color-text-tertiary)"}}>·</span>
+                  <span style={{fontSize:11,color:"var(--color-text-tertiary)"}}>{fmtD(e.date)}</span>
+                  {e.split.length>1&&<Pill color={C.plumD} bg={C.plumL} s>÷{e.split.length}</Pill>}
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:15,fontWeight:500}}>€{e.amount}</div>
+                {e.split.length>1&&<div style={{fontSize:10,color:"var(--color-text-tertiary)"}}>€{Math.round(e.amount/e.split.length*100)/100}/pers</div>}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                <button onClick={()=>{setEditExp(e);setExpModal(true)}} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--color-text-secondary)",padding:"2px 4px"}}>✏️</button>
+                <button onClick={()=>deleteExpense(e.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:C.brand,padding:"2px 4px"}}>🗑️</button>
+              </div>
+            </div>
+          </Card>;
+        })}
+      </div>
+
+      {/* SPLIT / BALANCES — Premium */}
+      {tier==="free"?<PremiumLock feature="Divisione spese e saldi"/>:
+      <Card style={{borderTop:`3px solid ${C.plum}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14}}><span style={{fontSize:14}}>⚖️</span><div style={{fontSize:14,fontWeight:500}}>Divisione spese</div><Pill color={C.plumD} bg={C.plumL} s>Split</Pill></div>
+
+        {/* Balances */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:12,color:"var(--color-text-secondary)",marginBottom:8}}>Bilancio per persona</div>
+          {trip.members.map(id=>{
+            const m=gM(id,members);
+            const bal=Math.round((balances[id]||0)*100)/100;
+            const paid=tripExp.filter(e=>e.paidBy===id).reduce((s,e)=>s+e.amount,0);
+            const owes=tripExp.filter(e=>e.split.includes(id)).reduce((s,e)=>s+e.amount/e.split.length,0);
+            return<div key={id} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 0",borderBottom:"0.5px solid var(--color-border-tertiary)"}}>
+              <Av m={m} sz={28} members={members}/>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500}}>{m.name}</div><div style={{fontSize:11,color:"var(--color-text-tertiary)"}}>Pagato €{paid} · Quota €{Math.round(owes*100)/100}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:500,color:bal>=0?C.sea:C.brand}}>{bal>=0?"+":""}€{bal}</div><div style={{fontSize:10,color:"var(--color-text-tertiary)"}}>{bal>=0?"in credito":"in debito"}</div></div>
+            </div>;
+          })}
+        </div>
+
+        {/* Settlements */}
+        {debts.length>0&&<div>
+          <div style={{fontSize:12,color:"var(--color-text-secondary)",marginBottom:8}}>Per pareggiare i conti</div>
+          {debts.map((d,i)=>{
+            const from=gM(d.from,members),to=gM(d.to,members);
+            return<div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:"var(--color-background-secondary)",borderRadius:10,marginBottom:6}}>
+              <Av m={from} sz={24} members={members}/>
+              <span style={{fontSize:12,fontWeight:500}}>{from.name}</span>
+              <span style={{fontSize:11,color:"var(--color-text-tertiary)",flex:1,textAlign:"center"}}>deve pagare</span>
+              <span style={{fontSize:14,fontWeight:500,color:C.brand}}>€{d.amount}</span>
+              <span style={{fontSize:11,color:"var(--color-text-tertiary)"}}>a</span>
+              <span style={{fontSize:12,fontWeight:500}}>{to.name}</span>
+              <Av m={to} sz={24} members={members}/>
+            </div>;
+          })}
+        </div>}
+        {debts.length===0&&<div style={{textAlign:"center",padding:"1rem",fontSize:13,color:C.sea}}>Tutti i conti sono pari!</div>}
+      </Card>}
+
+      {/* Expense Modal */}
+      <ExpenseModal open={expModal} onClose={()=>{setExpModal(false);setEditExp(null)}} onSave={saveExpense} expense={editExp} members={members} tripMembers={trip.members}/>
+    </div>}
+
+    {/* ── REMINDERS ── */}
+    {tab==="reminders"&&<Card>
+      {reminders.length===0?<div style={{textAlign:"center",padding:"2rem",color:"var(--color-text-secondary)",fontSize:13}}>Nessun promemoria</div>:
+      reminders.map((r,i)=><div key={r.id} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 0",borderBottom:i<reminders.length-1?"0.5px solid var(--color-border-tertiary)":"none"}}>
+        <button onClick={()=>setReminders(reminders.map(x=>x.id===r.id?{...x,done:!x.done}:x))} style={{width:20,height:20,borderRadius:6,border:r.done?"none":`1.5px solid var(--color-border-secondary)`,background:r.done?C.sea:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:11,flexShrink:0}}>{r.done?"✓":""}</button>
+        <div style={{flex:1}}><div style={{fontSize:13,textDecoration:r.done?"line-through":"none",color:r.done?"var(--color-text-tertiary)":"var(--color-text-primary)"}}>{r.text}</div><div style={{fontSize:11,color:"var(--color-text-tertiary)"}}>{fmtD(r.date)}</div></div>
+        <button onClick={()=>setReminders(reminders.filter(x=>x.id!==r.id))} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--color-text-tertiary)"}}>🗑️</button>
+      </div>)}
+      <button style={{width:"100%",marginTop:12,padding:10,borderRadius:10,border:"1.5px dashed var(--color-border-secondary)",background:"transparent",color:"var(--color-text-secondary)",fontSize:12,cursor:"pointer"}}>+ Nuovo promemoria</button>
+    </Card>}
+
+    {/* ── TICKETS ── */}
+    {tab==="tickets"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {trip.tickets.length===0?<EmptyState icon="🎫" title="Nessun biglietto" sub="Aggiungi voli, prenotazioni, ingressi" action="+ Aggiungi biglietto"/>:
+      trip.tickets.map(tk=><Card key={tk.id}><div style={{display:"flex",gap:12,alignItems:"center"}}>
+        <div style={{width:42,height:42,borderRadius:12,background:tk.ttype==="flight"?C.plumL:tk.ttype==="vehicle"?C.seaL:C.sunL,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{tk.ttype==="flight"?"✈️":tk.ttype==="vehicle"?"🚐":"🎟️"}</div>
+        <div style={{flex:1}}><div style={{fontSize:14,fontWeight:500}}>{tk.name}</div><div style={{display:"flex",gap:6,marginTop:3,alignItems:"center"}}><span style={{fontFamily:"monospace",fontSize:11,padding:"2px 7px",borderRadius:4,background:"var(--color-background-secondary)",fontWeight:500}}>{tk.code}</span><span style={{fontSize:11,color:"var(--color-text-secondary)"}}>{fmtD(tk.date)}</span></div></div>
+        <Pill color={tk.status==="confirmed"?C.seaD:C.sunD} bg={tk.status==="confirmed"?C.seaL:C.sunL}>{tk.status==="confirmed"?"✓ Confermato":"◷ In attesa"}</Pill>
+      </div></Card>)}
+      <button style={{padding:12,borderRadius:12,border:"1.5px dashed var(--color-border-secondary)",background:"transparent",color:"var(--color-text-secondary)",fontSize:13,cursor:"pointer"}}>+ Aggiungi biglietto</button>
+    </div>}
+
+    {/* ── CHAT ── */}
+    {tab==="chat"&&<Card style={{padding:0,overflow:"hidden"}}>
+      <div style={{padding:"10px 14px",borderBottom:"0.5px solid var(--color-border-tertiary)",display:"flex",alignItems:"center",gap:8}}><AvStack ids={trip.members} sz={20} members={members}/><span style={{fontSize:13,fontWeight:500}}>Chat del viaggio</span></div>
+      <div style={{padding:14,maxHeight:280,overflowY:"auto",background:"var(--color-background-secondary)"}}>
+        {chatMsgs.map(msg=>{const s=gM(msg.sender,members);const me=msg.sender==="u1";return<div key={msg.id} style={{display:"flex",gap:7,marginBottom:12,flexDirection:me?"row-reverse":"row"}}>
+          <Av m={s} sz={26} members={members}/>
+          <div style={{maxWidth:"72%"}}><div style={{fontSize:10,color:"var(--color-text-tertiary)",marginBottom:2,textAlign:me?"right":"left"}}>{s.name} · {msg.time}</div><div style={{background:me?C.skyL:"var(--color-background-primary)",border:me?"none":"0.5px solid var(--color-border-tertiary)",borderRadius:12,padding:"8px 12px",fontSize:13,lineHeight:1.5}}>{msg.text}</div></div>
+        </div>})}
+        <div ref={chatEnd}/>
+      </div>
+      <div style={{display:"flex",gap:6,padding:"8px 12px",borderTop:"0.5px solid var(--color-border-tertiary)"}}>
+        <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder="Scrivi..." style={{flex:1,padding:"8px 12px",borderRadius:10,border:"0.5px solid var(--color-border-tertiary)",background:"var(--color-background-secondary)",fontSize:13,outline:"none",color:"var(--color-text-primary)"}}/>
+        <Btn primary small onClick={sendChat}>Invia</Btn>
+      </div>
+    </Card>}
+  </div>;
+}
+
+/* ═══════════ EXPENSE MODAL ═══════════ */
+function ExpenseModal({open,onClose,onSave,expense,members,tripMembers}){
+  const [form,setForm]=useState({desc:"",amount:"",paidBy:"u1",split:[...tripMembers],date:new Date().toISOString().slice(0,10),cat:"other"});
+  useEffect(()=>{if(expense)setForm({desc:expense.desc,amount:expense.amount,paidBy:expense.paidBy,split:[...expense.split],date:expense.date,cat:expense.cat});else setForm({desc:"",amount:"",paidBy:"u1",split:[...tripMembers],date:new Date().toISOString().slice(0,10),cat:"other"})},[expense,open]);
+  const toggleSplit=(id)=>{setForm({...form,split:form.split.includes(id)?form.split.filter(x=>x!==id):[...form.split,id]})};
+  return<Modal open={open} onClose={onClose} title={expense?"Modifica spesa":"Nuova spesa"}>
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Descrizione</label><Input value={form.desc} onChange={v=>setForm({...form,desc:v})} placeholder="Es: Cena al ristorante"/></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Importo (€)</label><Input type="number" value={form.amount} onChange={v=>setForm({...form,amount:v})} placeholder="0.00"/></div>
+        <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Data</label><Input type="date" value={form.date} onChange={v=>setForm({...form,date:v})}/></div>
+      </div>
+      <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Categoria</label><Select value={form.cat} onChange={v=>setForm({...form,cat:v})} options={Object.entries(EXP_CAT).map(([k,v])=>({v:k,l:v.i+" "+v.l}))}/></div>
+      <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Pagato da</label>
+        <div style={{display:"flex",gap:6}}>{tripMembers.map(id=>{const m=gM(id,members);return<button key={id} onClick={()=>setForm({...form,paidBy:id})} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,border:form.paidBy===id?`2px solid ${m.c}`:"0.5px solid var(--color-border-tertiary)",background:form.paidBy===id?m.c+"18":"transparent",cursor:"pointer",fontSize:12}}><Av m={m} sz={18} members={members}/>{m.name}</button>})}</div>
+      </div>
+      <div><label style={{fontSize:12,color:"var(--color-text-secondary)",display:"block",marginBottom:4}}>Dividi tra</label>
+        <div style={{display:"flex",gap:6}}>{tripMembers.map(id=>{const m=gM(id,members);const active=form.split.includes(id);return<button key={id} onClick={()=>toggleSplit(id)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,border:active?`2px solid ${C.plum}`:"0.5px solid var(--color-border-tertiary)",background:active?C.plumL:"transparent",cursor:"pointer",fontSize:12,opacity:active?1:.5}}><Av m={m} sz={18} members={members}/>{m.name}</button>})}</div>
+        {form.split.length>0&&form.amount&&<div style={{fontSize:11,color:C.plum,marginTop:6}}>€{Math.round(Number(form.amount)/form.split.length*100)/100} a persona</div>}
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:6}}><Btn primary full onClick={()=>{if(!form.desc||!form.amount)return;onSave({desc:form.desc,amount:Number(form.amount),paidBy:form.paidBy,split:form.split,date:form.date,cat:form.cat});onClose()}} disabled={!form.desc||!form.amount}>Salva</Btn><Btn full onClick={onClose}>Annulla</Btn></div>
+    </div>
+  </Modal>;
+}
+
+/* ═══════════ CALENDAR ═══════════ */
+function CalendarPage({trips}){
+  const [month,setMonth]=useState(6);
+  const [selDay,setSelDay]=useState(null);
+  const ms=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+  const yr=2026;
+  const fd=new Date(yr,month,1).getDay();
+  const dim=new Date(yr,month+1,0).getDate();
+  const off=fd===0?6:fd-1;
+  const pad=d=>String(d).padStart(2,"0");
+  const ds=d=>`${yr}-${pad(month+1)}-${pad(d)}`;
+  const tripOn=(d)=>trips.find(t=>ds(d)>=t.start&&ds(d)<=t.end);
+  const remOn=(d)=>trips.flatMap(t=>t.reminders.filter(r=>r.date===ds(d)).map(r=>({...r,trip:t.title})));
+  const isStart=(d)=>trips.some(t=>t.start===ds(d));
+  const isEnd=(d)=>trips.some(t=>t.end===ds(d));
+
+  return<div>
+    <h2 style={{fontSize:20,fontWeight:500,margin:"0 0 16px"}}>Calendario</h2>
+    <Card style={{marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <button onClick={()=>setMonth(Math.max(0,month-1))} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:"var(--color-text-secondary)"}}>←</button>
+        <span style={{fontSize:15,fontWeight:500}}>{ms[month]} {yr}</span>
+        <button onClick={()=>setMonth(Math.min(11,month+1))} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:"var(--color-text-secondary)"}}>→</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+        {["L","M","M","G","V","S","D"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:11,color:"var(--color-text-tertiary)",padding:"5px 0",fontWeight:500}}>{d}</div>)}
+        {Array.from({length:off}).map((_,i)=><div key={`e${i}`}/>)}
+        {Array.from({length:dim}).map((_,i)=>{
+          const d=i+1;const trip=tripOn(d);const rems=remOn(d);const sel=selDay===d;const start=isStart(d);const end=isEnd(d);
+          return<button key={d} onClick={()=>setSelDay(sel?null:d)} style={{aspectRatio:"1",borderRadius:10,border:"none",cursor:"pointer",background:sel?C.brand:trip?(TYPES[trip.type]?.c||C.sea)+"18":"transparent",color:sel?"#fff":"var(--color-text-primary)",fontSize:12,fontWeight:(start||end)?600:rems.length?500:400,position:"relative",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1}}>
+            {d}
+            {(rems.length>0||start||end)&&<div style={{display:"flex",gap:2}}>{rems.length>0&&<div style={{width:4,height:4,borderRadius:"50%",background:sel?"#fff":C.sun}}/>}{start&&<div style={{width:4,height:4,borderRadius:"50%",background:sel?"#fff":C.green}}/>}{end&&<div style={{width:4,height:4,borderRadius:"50%",background:sel?"#fff":C.brand}}/>}</div>}
+          </button>;
+        })}
+      </div>
+    </Card>
+    {selDay&&<Card>
+      <div style={{fontSize:14,fontWeight:500,marginBottom:10}}>{selDay} {ms[month]} {yr}</div>
+      {tripOn(selDay)&&<div style={{display:"flex",gap:8,alignItems:"center",padding:"8px 10px",background:"var(--color-background-secondary)",borderRadius:10,marginBottom:8}}>
+        <span style={{fontSize:16}}>{tripOn(selDay).cover}</span><div><div style={{fontSize:13,fontWeight:500}}>{tripOn(selDay).title}</div><div style={{fontSize:11,color:"var(--color-text-secondary)"}}>{isStart(selDay)?"Partenza":isEnd(selDay)?"Ritorno":"In viaggio"}</div></div>
+      </div>}
+      {remOn(selDay).map(r=><div key={r.id} style={{display:"flex",gap:8,alignItems:"center",padding:"6px 0"}}><div style={{width:6,height:6,borderRadius:"50%",background:C.sun}}/><span style={{fontSize:12}}>{r.text}</span><span style={{fontSize:10,color:"var(--color-text-tertiary)",marginLeft:"auto"}}>{r.trip}</span></div>)}
+      {!tripOn(selDay)&&remOn(selDay).length===0&&<div style={{fontSize:13,color:"var(--color-text-tertiary)",textAlign:"center",padding:"0.5rem"}}>Nessun evento</div>}
+    </Card>}
+    <Card style={{marginTop:14}}><div style={{fontSize:13,fontWeight:500,marginBottom:8}}>Legenda</div>
+      <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:11,color:"var(--color-text-secondary)"}}>
+        <span style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:8,height:8,borderRadius:"50%",background:C.green}}/>Partenza</span>
+        <span style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:8,height:8,borderRadius:"50%",background:C.brand}}/>Ritorno</span>
+        <span style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:8,height:8,borderRadius:"50%",background:C.sun}}/>Promemoria</span>
+      </div>
+    </Card>
+  </div>;
+}
+
+/* ═══════════ GLOBAL EXPENSES ═══════════ */
+function ExpensesPage({trips,expenses,members,tier}){
+  const total=expenses.reduce((s,e)=>s+e.amount,0);
+  const byTrip={};trips.forEach(t=>{byTrip[t.id]={title:t.title,cover:t.cover,total:0}});
+  expenses.forEach(e=>{if(byTrip[e.tripId])byTrip[e.tripId].total+=e.amount});
+
+  return<div>
+    <h2 style={{fontSize:20,fontWeight:500,margin:"0 0 16px"}}>Spese</h2>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+      <div style={{background:"var(--color-background-secondary)",borderRadius:10,padding:"12px"}}><div style={{fontSize:10,color:"var(--color-text-secondary)"}}>Spese totali</div><div style={{fontSize:22,fontWeight:500}}>€{total}</div></div>
+      <div style={{background:"var(--color-background-secondary)",borderRadius:10,padding:"12px"}}><div style={{fontSize:10,color:"var(--color-text-secondary)"}}>N° transazioni</div><div style={{fontSize:22,fontWeight:500}}>{expenses.length}</div></div>
+    </div>
+    <div style={{fontSize:14,fontWeight:500,marginBottom:10}}>Per viaggio</div>
+    {Object.entries(byTrip).filter(([,v])=>v.total>0).map(([id,v])=><Card key={id} style={{marginBottom:8}}>
+      <div style={{display:"flex",gap:10,alignItems:"center"}}>
+        <span style={{fontSize:20}}>{v.cover}</span>
+        <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500}}>{v.title}</div><div style={{fontSize:11,color:"var(--color-text-secondary)"}}>{expenses.filter(e=>e.tripId===id).length} spese</div></div>
+        <div style={{fontSize:16,fontWeight:500}}>€{v.total}</div>
+      </div>
+      <div style={{marginTop:8,height:5,borderRadius:3,background:"var(--color-border-tertiary)"}}><div style={{height:5,borderRadius:3,background:C.sea,width:`${Math.min(v.total/total*100,100)}%`}}/></div>
+    </Card>)}
+
+    {tier==="free"&&<PremiumLock feature="Report dettagliato e export spese"/>}
+  </div>;
+}
+
+/* ═══════════ PROFILE + SUBSCRIPTION ═══════════ */
+function ProfilePage({tier,setTier,members}){
+  const [subPage,setSubPage]=useState("main");
+  const me=members[0];
+
+  if(subPage==="plans")return<SubscriptionPage tier={tier} setTier={setTier} back={()=>setSubPage("main")}/>;
+  if(subPage==="group")return<GroupPage members={members} back={()=>setSubPage("main")}/>;
+
+  return<div>
+    <h2 style={{fontSize:20,fontWeight:500,margin:"0 0 16px"}}>Profilo</h2>
+    <Card style={{marginBottom:14}}>
+      <div style={{display:"flex",gap:14,alignItems:"center"}}>
+        <Av m={me} sz={50} members={members}/>
+        <div style={{flex:1}}><div style={{fontSize:16,fontWeight:500}}>{me.name}</div><div style={{fontSize:12,color:"var(--color-text-secondary)",marginTop:2}}>matteo@email.com</div></div>
+        <button style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"var(--color-text-secondary)"}}>✏️</button>
+      </div>
+    </Card>
+
+    <Card style={{marginBottom:14,borderTop:`3px solid ${tier==="free"?C.stone:tier==="plus"?C.sky:C.brand}`}} onClick={()=>setSubPage("plans")}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <span style={{fontSize:18}}>{tier==="free"?"🆓":tier==="plus"?"⭐":"👑"}</span>
+          <div><div style={{fontSize:14,fontWeight:500}}>Piano {tier==="free"?"Free":tier==="plus"?"Plus":"Pro"}</div><div style={{fontSize:12,color:"var(--color-text-secondary)"}}>Gestisci abbonamento</div></div>
+        </div>
+        <span style={{color:"var(--color-text-tertiary)"}}>→</span>
+      </div>
+    </Card>
+
+    {[
+      {i:"◎",l:"Gruppo e inviti",s:"Gestisci i partecipanti",a:()=>setSubPage("group")},
+      {i:"🔔",l:"Notifiche",s:"Gestisci avvisi e promemoria"},
+      {i:"🌍",l:"Preferenze viaggio",s:"Stile, budget, interessi"},
+      {i:"🔒",l:"Privacy e sicurezza",s:"Password, dati, account"},
+      {i:"❓",l:"Aiuto e supporto",s:"FAQ, contattaci"},
+    ].map((item,i)=><Card key={i} onClick={item.a} style={{marginBottom:6,cursor:"pointer"}}>
+      <div style={{display:"flex",gap:10,alignItems:"center"}}>
+        <span style={{fontSize:16}}>{item.i}</span>
+        <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500}}>{item.l}</div><div style={{fontSize:11,color:"var(--color-text-secondary)"}}>{item.s}</div></div>
+        <span style={{color:"var(--color-text-tertiary)",fontSize:12}}>→</span>
+      </div>
+    </Card>)}
+  </div>;
+}
+
+/* ═══════════ SUBSCRIPTION PAGE ═══════════ */
+function SubscriptionPage({tier,setTier,back}){
+  const plans=[
+    {id:"free",name:"Free",price:"€0",period:"per sempre",icon:"🆓",color:C.stone,bg:C.stoneL,
+      features:["Crea fino a 2 viaggi","Itinerario base","Promemoria","Chat del viaggio"],
+      limits:["Nessuna divisione spese","Nessun export PDF","Massimo 2 partecipanti","Pubblicità"]},
+    {id:"plus",name:"Plus",price:"€4.99",period:"/mese",icon:"⭐",color:C.sky,bg:C.skyL,featured:true,
+      features:["Viaggi illimitati","Divisione spese (Splitwise)","Fino a 6 partecipanti","Calendario avanzato","Report spese","Nessuna pubblicità"],
+      limits:["Nessun export PDF","Nessun contenuto esclusivo"]},
+    {id:"pro",name:"Pro",price:"€9.99",period:"/mese",icon:"👑",color:C.brand,bg:C.brandL,
+      features:["Tutto di Plus +","Partecipanti illimitati","Export PDF itinerari","Report avanzati e grafici","Contenuti esclusivi insider","Supporto prioritario","Integrazioni API","Accesso anticipato novità"],
+      limits:[]},
+  ];
+
+  return<div>
+    <button onClick={back} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--color-text-secondary)",marginBottom:12,padding:0}}>← Torna al profilo</button>
+    <h2 style={{fontSize:20,fontWeight:500,margin:"0 0 6px"}}>Scegli il tuo piano</h2>
+    <p style={{fontSize:13,color:"var(--color-text-secondary)",margin:"0 0 16px"}}>Sblocca tutte le funzionalità di Roami per gestire i tuoi viaggi al meglio</p>
+
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {plans.map(p=><Card key={p.id} style={{borderTop:`3px solid ${p.color}`,border:p.featured?`2px solid ${p.color}`:"0.5px solid var(--color-border-tertiary)",position:"relative"}}>
+        {p.featured&&<div style={{position:"absolute",top:-11,left:"50%",transform:"translateX(-50%)",background:p.color,color:"#fff",fontSize:10,fontWeight:500,padding:"3px 14px",borderRadius:6}}>Consigliato</div>}
+        <div style={{display:"flex",gap:12,alignItems:"flex-start",paddingTop:p.featured?6:0}}>
+          <div style={{width:44,height:44,borderRadius:12,background:p.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{p.icon}</div>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+              <div style={{fontSize:16,fontWeight:500}}>{p.name}</div>
+              <div><span style={{fontSize:20,fontWeight:500}}>{p.price}</span><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{p.period}</span></div>
+            </div>
+
+            <div style={{marginTop:10}}>
+              <div style={{fontSize:11,fontWeight:500,color:C.seaD,marginBottom:4}}>Incluso:</div>
+              {p.features.map((f,i)=><div key={i} style={{fontSize:12,color:"var(--color-text-secondary)",padding:"3px 0",display:"flex",gap:6}}><span style={{color:C.sea}}>✓</span>{f}</div>)}
+            </div>
+
+            {p.limits.length>0&&<div style={{marginTop:8}}>
+              <div style={{fontSize:11,fontWeight:500,color:"var(--color-text-tertiary)",marginBottom:4}}>Non incluso:</div>
+              {p.limits.map((f,i)=><div key={i} style={{fontSize:12,color:"var(--color-text-tertiary)",padding:"2px 0",display:"flex",gap:6}}><span>✕</span>{f}</div>)}
+            </div>}
+
+            <div style={{marginTop:12}}>
+              {tier===p.id?<div style={{padding:"8px 16px",borderRadius:10,background:"var(--color-background-secondary)",textAlign:"center",fontSize:13,fontWeight:500,color:"var(--color-text-secondary)"}}>Piano attuale</div>:
+              <Btn primary full onClick={()=>setTier(p.id)}>{p.id==="free"?"Passa a Free":p.id==="plus"?"Prova 14 giorni gratis":"Attiva Pro"}</Btn>}
+            </div>
+          </div>
+        </div>
+      </Card>)}
+    </div>
+
+    <Card style={{marginTop:14}}>
+      <div style={{fontSize:13,fontWeight:500,marginBottom:8}}>Confronto funzionalità</div>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",fontSize:12,borderCollapse:"collapse"}}>
+          <thead><tr style={{borderBottom:"0.5px solid var(--color-border-tertiary)"}}>
+            <th style={{textAlign:"left",padding:"6px 0",color:"var(--color-text-secondary)",fontWeight:400}}>Funzionalità</th>
+            {plans.map(p=><th key={p.id} style={{textAlign:"center",padding:"6px 4px",fontWeight:500,color:p.color}}>{p.name}</th>)}
+          </tr></thead>
+          <tbody>
+            {[
+              ["Viaggi","2","∞","∞"],["Partecipanti","2","6","∞"],
+              ["Itinerario","Base","Completo","Completo"],["Divisione spese","—","✓","✓"],
+              ["Chat","✓","✓","✓"],["Promemoria","✓","✓","✓"],
+              ["Calendario","Base","Avanzato","Avanzato"],["Export PDF","—","—","✓"],
+              ["Report spese","—","✓","✓ Avanzati"],["Pubblicità","Sì","No","No"],
+              ["Supporto","Standard","Standard","Prioritario"],
+            ].map((row,i)=><tr key={i} style={{borderBottom:"0.5px solid var(--color-border-tertiary)"}}>
+              <td style={{padding:"6px 0",color:"var(--color-text-secondary)"}}>{row[0]}</td>
+              {row.slice(1).map((v,j)=><td key={j} style={{textAlign:"center",padding:"6px 4px",color:v==="—"?"var(--color-text-tertiary)":v==="✓"?C.sea:"var(--color-text-primary)"}}>{v}</td>)}
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  </div>;
+}
+
+/* ═══════════ GROUP PAGE ═══════════ */
+function GroupPage({members,back}){
+  const roles={owner:"Proprietario",admin:"Admin",editor:"Editor",viewer:"Viewer"};
+  const rc={owner:C.brand,admin:C.plum,editor:C.sky,viewer:C.stone};
+  return<div>
+    <button onClick={back} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--color-text-secondary)",marginBottom:12,padding:0}}>← Torna al profilo</button>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <h2 style={{fontSize:20,fontWeight:500,margin:0}}>Il tuo gruppo</h2>
+      <Btn primary small>+ Invita</Btn>
+    </div>
+    {members.map(m=><Card key={m.id} style={{marginBottom:8}}>
+      <div style={{display:"flex",gap:12,alignItems:"center"}}>
+        <Av m={m} sz={40} members={members}/>
+        <div style={{flex:1}}><div style={{fontSize:14,fontWeight:500}}>{m.name}</div><div style={{fontSize:11,color:"var(--color-text-secondary)"}}>Membro dal 2026</div></div>
+        <Pill color={rc[m.role]} bg={m.role==="owner"?C.brandL:m.role==="admin"?C.plumL:C.skyL}>{roles[m.role]}</Pill>
+        {m.role!=="owner"&&<button style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--color-text-tertiary)"}}>⋮</button>}
+      </div>
+    </Card>)}
+    <Card style={{marginTop:10}}>
+      <div style={{fontSize:13,fontWeight:500,marginBottom:6}}>Link di invito</div>
+      <div style={{display:"flex",gap:6,alignItems:"center",background:"var(--color-background-secondary)",borderRadius:8,padding:"8px 12px"}}>
+        <span style={{flex:1,fontSize:11,fontFamily:"monospace",color:"var(--color-text-secondary)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>https://roami.app/invite/xK9m2pQr</span>
+        <Btn small>Copia</Btn>
+      </div>
+    </Card>
+  </div>;
+}
+
+/* ═══════════ MAIN APP ═══════════ */
+export default function Roami(){
+  const [page,setPage]=useState("home");
+  const [view,setView]=useState(null);
+  const [tier,setTier]=useState("plus");
+  const [trips,setTrips]=useState(initTrips);
+  const [expenses,setExpenses]=useState(initExpenses);
+  const [members]=useState(initMembers);
+  const [editModal,setEditModal]=useState(false);
+  const [editTrip,setEditTrip]=useState(null);
+
+  const deleteTrip=(id)=>{setTrips(trips.filter(t=>t.id!==id));setExpenses(expenses.filter(e=>e.tripId!==id))};
+  const newTrip=()=>{setEditTrip(null);setEditModal(true)};
+
+  const saveTrip=(form)=>{
+    if(editTrip){
+      setTrips(trips.map(t=>t.id===editTrip.id?{...t,...form}:t));
+    } else {
+      setTrips([...trips,{id:uid(),days:[],reminders:[],tickets:[],chat:[],members:["u1"],...form}]);
+    }
+  };
+
+  const handleEditFromDetail=()=>{
+    const t=trips.find(t=>t.id===view);
+    if(t){setEditTrip(t);setEditModal(true)}
+  };
+
+  // Handle edit view from trip list context menu
+  useEffect(()=>{
+    if(view&&view.endsWith("_edit")){
+      const id=view.replace("_edit","");
+      const t=trips.find(t=>t.id===id);
+      if(t){setEditTrip(t);setEditModal(true);setView(id)}
+    }
+  },[view]);
+
+  return<div style={{fontFamily:"var(--font-sans)",color:"var(--color-text-primary)",maxWidth:680,margin:"0 auto"}}>
+    {/* Header */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0 10px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:22,fontWeight:600,color:C.brand,letterSpacing:-1}}>Roami</span>
+        <Pill color={tier==="free"?C.stoneD:tier==="plus"?C.skyD:C.brandD} bg={tier==="free"?C.stoneL:tier==="plus"?C.skyL:C.brandL} s>{tier==="free"?"Free":tier==="plus"?"Plus":"Pro"}</Pill>
+      </div>
+      <Av m="u1" sz={30} members={members}/>
+    </div>
+
+    <NavBar page={page} setPage={setPage} setView={setView}/>
+
+    <div style={{minHeight:500}}>
+      {page==="home"&&<HomePage trips={trips} expenses={expenses} members={members} setPage={setPage} setView={setView} tier={tier}/>}
+      {page==="trips"&&!view&&<TripList trips={trips} setView={setView} onNew={newTrip} onDelete={deleteTrip} members={members}/>}
+      {page==="trips"&&view&&trips.find(t=>t.id===view)&&<TripDetail trip={trips.find(t=>t.id===view)} setView={setView} expenses={expenses} setExpenses={setExpenses} members={members} tier={tier} onEdit={handleEditFromDetail} onUpdateTrip={(updated)=>setTrips(trips.map(t=>t.id===updated.id?updated:t))}/>}
+      {page==="calendar"&&<CalendarPage trips={trips}/>}
+      {page==="expenses"&&<ExpensesPage trips={trips} expenses={expenses} members={members} tier={tier}/>}
+      {page==="profile"&&<ProfilePage tier={tier} setTier={setTier} members={members}/>}
+    </div>
+
+    <TripEditModal trip={editTrip} open={editModal} onClose={()=>{setEditModal(false);setEditTrip(null)}} onSave={saveTrip}/>
+  </div>;
+}
