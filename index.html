@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Roami - Travel Planner</title>
+    <style>
+        :root {
+            /* Palette e Design System stile iOS */
+            --bg-base: #F2F2F7;
+            --bg-surface: #FFFFFF;
+            --bg-surface-elevated: #FFFFFF;
+            --tint-primary: #007AFF;
+            --tint-danger: #FF3B30;
+            --tint-success: #34C759;
+            --tint-warning: #FF9500;
+            --tint-purple: #AF52DE;
+            --text-main: #1C1C1E;
+            --text-secondary: #8E8E93;
+            --border-color: rgba(60, 60, 67, 0.15);
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+            --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Contenitore App Mobile-First */
+        #app {
+            width: 100%;
+            max-width: 500px;
+            background-color: var(--bg-base);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Top Navigation Bar */
+        .nav-top {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 0.5px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .app-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+        
+        /* Layout scrollabile */
+        #content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 100px; /* Spazio per la bottom bar */
+        }
+
+        /* Bottom Navigation Bar */
+        .nav-bottom {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 10px 24px;
+            border-top: 0.5px solid var(--border-color);
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            z-index: 50;
+        }
+
+        .tab-btn {
+            background: none; border: none;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            color: var(--text-secondary); font-size: 10px; font-weight: 500;
+            cursor: pointer; transition: 0.2s;
+        }
+        .tab-btn.active { color: var(--tint-primary); }
+        .tab-icon { font-size: 22px; }
+
+        /* Cards & Liste */
+        .section-title { font-size: 18px; font-weight: 600; margin: 24px 0 12px; }
+        
+        .list-group {
+            background: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 0.5px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .list-item:active { background: var(--bg-base); }
+        .list-item:last-child { border-bottom: none; }
+        
+        .item-icon-box {
+            width: 40px; height: 40px; border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; margin-right: 14px;
+        }
+
+        .item-content { flex: 1; }
+        .item-title { font-size: 16px; font-weight: 500; }
+        .item-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+        .item-right { text-align: right; }
+
+        /* Bottoni UI */
+        .btn {
+            background: var(--bg-surface); border: 0.5px solid var(--border-color);
+            padding: 12px 20px; border-radius: var(--radius-md);
+            font-size: 15px; font-weight: 600; cursor: pointer;
+            width: 100%; text-align: center; color: var(--text-main);
+        }
+        .btn-primary { background: var(--tint-primary); color: white; border: none; }
+        .btn-danger { color: var(--tint-danger); }
+        .btn-small { padding: 6px 12px; font-size: 13px; border-radius: 8px; width: auto; }
+        
+        /* Segmented Control (Tabs interni) */
+        .segmented-control {
+            display: flex; background: #E5E5EA; padding: 3px; border-radius: 9px; margin-bottom: 20px;
+        }
+        .segment {
+            flex: 1; text-align: center; padding: 6px 0; font-size: 13px; font-weight: 500;
+            border-radius: 7px; cursor: pointer; transition: 0.2s; color: var(--text-main);
+        }
+        .segment.active { background: white; box-shadow: 0 3px 8px rgba(0,0,0,0.12); }
+
+        /* Forms & Modals */
+        .input-group { margin-bottom: 16px; }
+        .input-label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; margin-left: 4px; text-transform: uppercase; letter-spacing: 0.5px;}
+        input, select, textarea {
+            width: 100%; padding: 14px; background: var(--bg-surface);
+            border: 0.5px solid var(--border-color); border-radius: var(--radius-md);
+            font-size: 15px; font-family: inherit; color: var(--text-main);
+            outline: none; -webkit-appearance: none;
+        }
+        input:focus { border-color: var(--tint-primary); }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 100;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        
+        .modal-sheet {
+            background: var(--bg-base); width: 100%; max-width: 500px; margin: 0 auto;
+            border-radius: 24px 24px 0 0; padding: 24px 20px; height: 85vh;
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.1, 0.8, 0.2, 1);
+            overflow-y: auto; padding-bottom: 40px;
+        }
+        .modal-overlay.active .modal-sheet { transform: translateY(0); }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close-btn { background: #E5E5EA; border: none; width: 30px; height: 30px; border-radius: 15px; font-size: 14px; font-weight: bold; color: var(--text-secondary); cursor: pointer;}
+
+        /* Premium Lock */
+        .premium-lock {
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+            border: 1px solid #d1d1d6; border-radius: var(--radius-lg);
+            padding: 30px 20px; text-align: center; margin-top: 20px;
+        }
+        .premium-icon { font-size: 40px; margin-bottom: 10px; }
+
+        /* Pricing Table */
+        .tier-card {
+            background: var(--bg-surface); border-radius: var(--radius-lg); padding: 20px;
+            margin-bottom: 16px; border: 2px solid transparent; position: relative;
+        }
+        .tier-card.active-tier { border-color: var(--tint-primary); }
+        .tier-price { font-size: 28px; font-weight: 700; margin: 10px 0; }
+        .feature-list { list-style: none; margin-top: 15px; font-size: 14px;}
+        .feature-list li { padding: 6px 0; border-bottom: 0.5px solid var(--border-color); color: var(--text-secondary); }
+        .feature-list li::before { content: "✓ "; color: var(--tint-success); font-weight: bold;}
+
+        /* Chat */
+        .chat-msg { margin-bottom: 12px; max-width: 80%; display: flex; flex-direction: column;}
+        .chat-msg.me { align-self: flex-end; align-items: flex-end; }
+        .chat-bubble { padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4;}
+        .chat-msg.me .chat-bubble { background: var(--tint-primary); color: white; border-bottom-right-radius: 4px;}
+        .chat-msg.other .chat-bubble { background: #E5E5EA; color: black; border-bottom-left-radius: 4px;}
+        .chat-author { font-size: 10px; color: var(--text-secondary); margin-bottom: 4px; }
+
+        .titan-footer { text-align: center; font-size: 12px; color: var(--text-secondary); margin-top: 40px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="nav-top">
+        <div class="app-title">Roami</div>
+        <div id="user-tier-badge" style="font-size: 12px; background: rgba(0,122,255,0.1); color: var(--tint-primary); padding: 4px 10px; border-radius: 10px; font-weight: 600;">Pro</div>
+    </div>
+
+    <div id="content">
+        </div>
+
+    <div class="nav-bottom">
+        <button class="tab-btn active" onclick="nav('home')"><span class="tab-icon">🏠</span><span>Home</span></button>
+        <button class="tab-btn" onclick="nav('trips')"><span class="tab-icon">🗺️</span><span>Viaggi</span></button>
+        <button class="tab-btn" onclick="nav('calendar')"><span class="tab-icon">📅</span><span>Calendario</span></button>
+        <button class="tab-btn" onclick="nav('profile')"><span class="tab-icon">⚙️</span><span>Profilo</span></button>
+    </div>
+</div>
+
+<div id="modal" class="modal-overlay">
+    <div class="modal-sheet">
+        <div class="modal-header">
+            <h2 id="modal-title" style="font-size: 20px;">Nuovo</h2>
+            <button class="close-btn" onclick="closeModal()">✕</button>
+        </div>
+        <div id="modal-content"></div>
+    </div>
+</div>
+
+<script>
+    // --- MOCK DATABASE (Firebase sostitutivo) ---
+    // Questi dati simulano il backend Firestore
+    const DUMMY_USERS = [
+        { id: 'u1', name: 'Matteo' },
+        { id: 'u2', name: 'Cristina' },
+        { id: 'u3', name: 'Marco' }
+    ];
+
+    let state = {
+        view: 'home', // home, trips, trip-detail, calendar, profile, subscription
+        activeTripId: null,
+        activeTripTab: 'info', // info, budget, chat, reminders
+        user: { id: 'u1', name: 'Matteo', email: 'matteo@titancode.com', tier: 'free' }, // Tiers: free, plus, pro
+        
+        trips: [
+            { id: 't1', title: 'Norvegia in Camper', type: 'camper', start: '2026-07-12', end: '2026-07-22', budget: 3200, cover: '🚐', desc: 'Esplorazione fiordi' },
+            { id: 't2', title: 'Cammino di Santiago', type: 'walking', start: '2026-09-01', end: '2026-09-15', budget: 800, cover: '🥾', desc: 'Trekking parte francese' }
+        ],
+        expenses: [
+            { id: 'e1', tripId: 't1', desc: 'Noleggio Camper', amount: 1200, paidBy: 'u1', split: ['u1', 'u2'] },
+            { id: 'e2', tripId: 't1', desc: 'Spesa Supermercato', amount: 85, paidBy: 'u2', split: ['u1', 'u2'] },
+            { id: 'e3', tripId: 't1', desc: 'Traghetto', amount: 45, paidBy: 'u1', split: ['u1', 'u2'] }
+        ],
+        chat: [
+            { id: 'c1', tripId: 't1', userId: 'u2', text: 'Hai controllato i documenti per il camper?', time: '10:45' },
+            { id: 'c2', tripId: 't1', userId: 'u1', text: 'Sì, tutto pronto. Li ho messi nella cartellina.', time: '10:50' }
+        ],
+        reminders: [
+            { id: 'r1', tripId: 't1', text: 'Check-in volo', date: '2026-07-11', done: false }
+        ]
+    };
+
+    // --- CORE ROUTING & RENDER ---
+    function nav(targetView, payload = null) {
+        state.view = targetView;
+        if (payload) state.activeTripId = payload;
+        
+        // Aggiorna UI Navigation
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.innerText.toLowerCase() === targetView);
+        });
+        
+        document.getElementById('user-tier-badge').innerText = state.user.tier.toUpperCase();
+        document.getElementById('user-tier-badge').style.background = state.user.tier === 'free' ? '#E5E5EA' : (state.user.tier === 'pro' ? '#AF52DE22' : '#007AFF22');
+        document.getElementById('user-tier-badge').style.color = state.user.tier === 'free' ? '#8E8E93' : (state.user.tier === 'pro' ? '#AF52DE' : '#007AFF');
+
+        render();
+    }
+
+    function render() {
+        const content = document.getElementById('content');
+        content.innerHTML = ''; // Clear
+
+        switch(state.view) {
+            case 'home': content.innerHTML = viewHome(); break;
+            case 'trips': content.innerHTML = viewTrips(); break;
+            case 'trip-detail': content.innerHTML = viewTripDetail(); break;
+            case 'calendar': content.innerHTML = viewCalendar(); break;
+            case 'profile': content.innerHTML = viewProfile(); break;
+            case 'subscription': content.innerHTML = viewSubscription(); break;
+        }
+    }
+
+    // --- VIEWS ---
+
+    function viewHome() {
+        const nextTrip = state.trips[0];
+        const totalExp = state.expenses.reduce((s, e) => s + e.amount, 0);
+
+        let html = `
+            <div style="margin-bottom: 30px;">
+                <h1 style="font-size: 28px; font-weight: 700;">Ciao, ${state.user.name}</h1>
+                <p style="color: var(--text-secondary); font-size: 15px;">Hai ${state.trips.length} viaggi in programma.</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px;">
+                <div style="background: var(--bg-surface); padding: 16px; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);">
+                    <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Spese Totali</div>
+                    <div style="font-size: 22px; font-weight: 700; color: var(--tint-primary);">€${totalExp}</div>
+                </div>
+                <div style="background: var(--bg-surface); padding: 16px; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);" onclick="nav('subscription')">
+                    <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Piano Attuale</div>
+                    <div style="font-size: 22px; font-weight: 700; text-transform: capitalize;">${state.user.tier}</div>
+                </div>
+            </div>
+
+            <div class="section-title">Prossima Avventura</div>
+        `;
+
+        if (nextTrip) {
+            html += renderTripCard(nextTrip);
+        } else {
+            html += `<p style="color: var(--text-secondary); text-align:center; padding: 20px;">Nessun viaggio pianificato.</p>`;
+        }
+
+        return html;
+    }
+
+    function viewTrips() {
+        let html = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1 style="font-size: 28px; font-weight: 700;">I tuoi Viaggi</h1>
+                <button class="btn btn-primary btn-small" onclick="openTripForm()">+ Nuovo</button>
+            </div>
+            <div class="list-group" style="margin-top: 20px; background: transparent; box-shadow: none;">
+        `;
+        
+        state.trips.forEach(t => {
+            html += renderTripCard(t);
+        });
+        
+        html += `</div>`;
+        return html;
+    }
+
+    function renderTripCard(trip) {
+        return `
+            <div class="list-group" onclick="nav('trip-detail', '${trip.id}')" style="cursor: pointer; background: var(--bg-surface);">
+                <div class="list-item" style="padding: 20px;">
+                    <div class="item-icon-box" style="background: #F2F2F7; font-size: 28px; width: 56px; height: 56px;">${trip.cover}</div>
+                    <div class="item-content">
+                        <div class="item-title" style="font-size: 18px; font-weight: 600;">${trip.title}</div>
+                        <div class="item-subtitle">${trip.start} → ${trip.end}</div>
+                        <div style="margin-top: 8px;">
+                            <span style="font-size: 11px; font-weight: 600; padding: 4px 8px; background: rgba(0,122,255,0.1); color: var(--tint-primary); border-radius: 6px; text-transform: uppercase;">${trip.type}</span>
+                        </div>
+                    </div>
+                    <div style="color: var(--text-secondary);">❯</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function viewTripDetail() {
+        const trip = state.trips.find(t => t.id === state.activeTripId);
+        if (!trip) return `<button class="btn" onclick="nav('trips')">Indietro</button><p>Viaggio non trovato</p>`;
+
+        let html = `
+            <button style="background:none; border:none; color:var(--tint-primary); font-size:16px; font-weight:500; margin-bottom:10px; cursor:pointer;" onclick="nav('trips')">❮ Viaggi</button>
+            <div style="display:flex; align-items:center; gap: 15px; margin-bottom: 20px;">
+                <div style="font-size: 40px;">${trip.cover}</div>
+                <div>
+                    <h1 style="font-size: 24px; font-weight: 700;">${trip.title}</h1>
+                    <p style="color: var(--text-secondary); font-size: 14px;">${trip.start} - ${trip.end}</p>
+                </div>
+            </div>
+
+            <div class="segmented-control">
+                <div class="segment ${state.activeTripTab === 'info' ? 'active' : ''}" onclick="setTripTab('info')">Info</div>
+                <div class="segment ${state.activeTripTab === 'budget' ? 'active' : ''}" onclick="setTripTab('budget')">Budget</div>
+                <div class="segment ${state.activeTripTab === 'calendar' ? 'active' : ''}" onclick="setTripTab('calendar')">Piano</div>
+                <div class="segment ${state.activeTripTab === 'chat' ? 'active' : ''}" onclick="setTripTab('chat')">Chat</div>
+            </div>
+        `;
+
+        if (state.activeTripTab === 'info') html += renderTripInfo(trip);
+        if (state.activeTripTab === 'budget') html += renderTripBudget(trip);
+        if (state.activeTripTab === 'chat') html += renderTripChat(trip);
+        if (state.activeTripTab === 'calendar') html += renderTripCalendar(trip); // Semplificato per ora in una lista task
+
+        return html;
+    }
+
+    function setTripTab(tab) {
+        state.activeTripTab = tab;
+        render();
+    }
+
+    // -- Sub-views del Viaggio --
+    function renderTripInfo(trip) {
+        return `
+            <div class="list-group">
+                <div class="list-item">
+                    <div class="item-content"><div class="item-title">Descrizione</div><div class="item-subtitle">${trip.desc || 'Nessuna descrizione'}</div></div>
+                </div>
+                <div class="list-item">
+                    <div class="item-content"><div class="item-title">Tipo di Viaggio</div><div class="item-subtitle" style="text-transform: capitalize;">${trip.type}</div></div>
+                </div>
+            </div>
+            
+            <div class="section-title">Partecipanti</div>
+            <div class="list-group">
+                ${DUMMY_USERS.map(u => `
+                    <div class="list-item">
+                        <div class="item-icon-box" style="background: var(--tint-primary); color:white; width: 32px; height: 32px; font-size:14px; font-weight:bold;">${u.name[0]}</div>
+                        <div class="item-content"><div class="item-title">${u.name}</div></div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="section-title" style="color: var(--tint-danger)">Amministrazione</div>
+            <div class="list-group">
+                <div class="list-item" onclick="openTripForm('${trip.id}')" style="color: var(--tint-primary); font-weight:500;">Modifica Dati Viaggio</div>
+                <div class="list-item" onclick="deleteTrip('${trip.id}')" style="color: var(--tint-danger); font-weight:500;">Elimina Viaggio</div>
+            </div>
+        `;
+    }
+
+    function renderTripBudget(trip) {
+        const tExp = state.expenses.filter(e => e.tripId === trip.id);
+        const tTotal = tExp.reduce((s, e) => s + e.amount, 0);
+
+        let html = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">Spesa Totale</div>
+                    <div style="font-size: 28px; font-weight: 700;">€${tTotal} <span style="font-size:14px; color: var(--text-secondary); font-weight:400;">su €${trip.budget}</span></div>
+                </div>
+                <button class="btn btn-primary btn-small" onclick="openExpenseForm('${trip.id}')">+ Spesa</button>
+            </div>
+        `;
+
+        // LISTA SPESE
+        if (tExp.length > 0) {
+            html += `<div class="list-group">`;
+            tExp.forEach(e => {
+                const payer = DUMMY_USERS.find(u => u.id === e.paidBy).name;
+                html += `
+                    <div class="list-item" onclick="openExpenseForm('${trip.id}', '${e.id}')">
+                        <div class="item-content">
+                            <div class="item-title">${e.desc}</div>
+                            <div class="item-subtitle">Pagato da ${payer}</div>
+                        </div>
+                        <div class="item-right">
+                            <div style="font-weight: 600;">€${e.amount}</div>
+                            <div style="font-size:11px; color:var(--text-secondary);">diviso in ${e.split.length}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+        } else {
+            html += `<p style="text-align:center; color: var(--text-secondary); padding: 20px;">Nessuna spesa inserita.</p>`;
+        }
+
+        // LOGICA PREMIUM: SPLIT SPESE
+        html += `<div class="section-title">Bilanciamento Spese (Split)</div>`;
+        
+        if (state.user.tier === 'free') {
+            html += `
+                <div class="premium-lock">
+                    <div class="premium-icon">🔒</div>
+                    <h3 style="margin-bottom: 8px;">Funzione Plus</h3>
+                    <p style="font-size:14px; color: var(--text-secondary); margin-bottom: 16px;">Il calcolo automatico dei debiti e la divisione equa delle spese è riservata agli utenti Plus o Pro.</p>
+                    <button class="btn btn-primary" onclick="nav('subscription')">Scopri i Piani</button>
+                </div>
+            `;
+        } else {
+            // Algoritmo Splitwise Semplificato
+            let balances = {};
+            DUMMY_USERS.forEach(u => balances[u.id] = 0);
+            
+            tExp.forEach(e => {
+                const share = e.amount / e.split.length;
+                balances[e.paidBy] += e.amount; // Chi ha pagato va in credito (+)
+                e.split.forEach(id => balances[id] -= share); // Chi ha partecipato va in debito (-)
+            });
+
+            html += `<div class="list-group">`;
+            Object.entries(balances).forEach(([uid, bal]) => {
+                const user = DUMMY_USERS.find(u => u.id === uid);
+                const isCredit = bal > 0.01;
+                const isDebt = bal < -0.01;
+                const color = isCredit ? 'var(--tint-success)' : (isDebt ? 'var(--tint-danger)' : 'var(--text-secondary)');
+                const text = isCredit ? 'Deve ricevere' : (isDebt ? 'Deve dare' : 'In pari');
+                
+                html += `
+                    <div class="list-item">
+                        <div class="item-content"><div class="item-title">${user.name}</div><div class="item-subtitle">${text}</div></div>
+                        <div class="item-right" style="color: ${color}; font-weight: 600;">€${Math.abs(bal).toFixed(2)}</div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+        }
+
+        return html;
+    }
+
+    function renderTripChat(trip) {
+        const msgs = state.chat.filter(c => c.tripId === trip.id);
+        let html = `
+            <div style="background: var(--bg-surface); border-radius: var(--radius-lg); padding: 16px; height: 400px; display: flex; flex-direction: column; box-shadow: var(--shadow-sm);">
+                <div style="flex:1; overflow-y:auto; padding-bottom: 10px; display: flex; flex-direction: column;">
+        `;
+        
+        if(msgs.length === 0) html += `<div style="text-align:center; color:var(--text-secondary); margin-top:20px;">Inizia la conversazione!</div>`;
+        
+        msgs.forEach(m => {
+            const isMe = m.userId === state.user.id;
+            const author = DUMMY_USERS.find(u => u.id === m.userId).name;
+            html += `
+                <div class="chat-msg ${isMe ? 'me' : 'other'}">
+                    ${!isMe ? `<div class="chat-author">${author}</div>` : ''}
+                    <div class="chat-bubble">${m.text}</div>
+                    <div style="font-size: 9px; color: #bbb; margin-top: 2px; text-align: ${isMe ? 'right' : 'left'};">${m.time}</div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+                <div style="display:flex; gap: 8px; margin-top: 10px; border-top: 0.5px solid var(--border-color); padding-top: 10px;">
+                    <input type="text" id="chat-input" placeholder="Scrivi un messaggio..." style="padding: 10px; flex:1;">
+                    <button class="btn btn-primary" style="width: auto; padding: 10px 16px;" onclick="sendChat('${trip.id}')">↑</button>
+                </div>
+            </div>
+            <div style="font-size:11px; text-align:center; color:var(--text-secondary); margin-top: 10px;">Questa chat è sincronizzata in tempo reale via Firebase (simulazione)</div>
+        `;
+        return html;
+    }
+
+    function renderTripCalendar(trip) {
+        const rems = state.reminders.filter(r => r.tripId === trip.id);
+        let html = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+                <h3 style="font-size:18px;">Calendario & Promemoria</h3>
+                <button class="btn btn-primary btn-small">+ Evento</button>
+            </div>
+            <div class="list-group">
+        `;
+        
+        if(rems.length === 0) html += `<div class="list-item"><div class="item-content" style="color:var(--text-secondary); text-align:center;">Nessun evento pianificato.</div></div>`;
+
+        rems.forEach(r => {
+            html += `
+                <div class="list-item">
+                    <div style="margin-right: 14px; width: 24px; height: 24px; border-radius: 12px; border: 2px solid var(--border-color);"></div>
+                    <div class="item-content">
+                        <div class="item-title">${r.text}</div>
+                        <div class="item-subtitle" style="color: var(--tint-primary);">${r.date}</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+        return html;
+    }
+
+    function viewCalendar() {
+        return `
+            <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 20px;">Calendario Globale</h1>
+            <div class="list-group">
+                <div class="list-item">
+                    <div class="item-content" style="text-align:center; padding: 40px 10px; color: var(--text-secondary);">
+                        <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+                        Visualizzazione calendario completa in sviluppo.<br>Qui vedrai tutte le partenze, tappe e voli dei tuoi viaggi.
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function viewProfile() {
+        return `
+            <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 20px;">Profilo</h1>
+            
+            <div class="list-group">
+                <div class="list-item" style="padding: 20px;">
+                    <div class="item-icon-box" style="background: var(--tint-primary); color:white; font-size: 24px; width: 64px; height: 64px;">${state.user.name[0]}</div>
+                    <div class="item-content">
+                        <div class="item-title" style="font-size: 20px;">${state.user.name}</div>
+                        <div class="item-subtitle">${state.user.email}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-title">Account</div>
+            <div class="list-group">
+                <div class="list-item" onclick="nav('subscription')">
+                    <div class="item-content"><div class="item-title">Gestione Abbonamento</div><div class="item-subtitle">Piano attuale: <b style="text-transform: capitalize;">${state.user.tier}</b></div></div>
+                    <div class="item-right" style="color: var(--text-secondary);">❯</div>
+                </div>
+                <div class="list-item">
+                    <div class="item-content"><div class="item-title">Collegamento Firebase</div><div class="item-subtitle">Account sincronizzato</div></div>
+                    <div class="item-right" style="color: var(--tint-success); font-weight:bold;">✓</div>
+                </div>
+            </div>
+
+            <button class="btn btn-danger" style="background: var(--bg-surface);">Esci dall'App</button>
+            
+            <div class="titan-footer">
+                Sviluppato da Titan Code
+            </div>
+        `;
+    }
+
+    function viewSubscription() {
+        return `
+            <button style="background:none; border:none; color:var(--tint-primary); font-size:16px; font-weight:500; margin-bottom:10px; cursor:pointer;" onclick="nav('profile')">❮ Profilo</button>
+            <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 5px;">I Piani Roami</h1>
+            <p style="color: var(--text-secondary); font-size: 15px; margin-bottom: 24px;">Sblocca il pieno potenziale dei tuoi viaggi.</p>
+
+            <div class="tier-card ${state.user.tier === 'free' ? 'active-tier' : ''}">
+                <div style="font-size:12px; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Base</div>
+                <div class="tier-price">Gratis</div>
+                <ul class="feature-list">
+                    <li>Pianificazione viaggi base</li>
+                    <li>Chat limitata</li>
+                    <li>Invito fino a 2 persone</li>
+                </ul>
+                ${state.user.tier === 'free' ? '<button class="btn" disabled style="margin-top:16px;">Piano Attuale</button>' : '<button class="btn" style="margin-top:16px;" onclick="setTier(\'free\')">Passa a Free</button>'}
+            </div>
+
+            <div class="tier-card ${state.user.tier === 'plus' ? 'active-tier' : ''}">
+                <div style="position:absolute; top:-10px; right: 20px; background:var(--tint-primary); color:white; padding:4px 10px; border-radius:10px; font-size:11px; font-weight:600;">POPOLARE</div>
+                <div style="font-size:12px; color:var(--tint-primary); text-transform:uppercase; font-weight:600;">Livello 2</div>
+                <div class="tier-price">€2.99<span style="font-size:14px; color:var(--text-secondary); font-weight:normal;">/mese</span></div>
+                <ul class="feature-list">
+                    <li>Tutto del piano Free</li>
+                    <li><strong style="color:var(--text-main);">Split spese avanzato</strong></li>
+                    <li>Gruppi fino a 10 persone</li>
+                    <li>Nessuna Pubblicità</li>
+                </ul>
+                ${state.user.tier === 'plus' ? '<button class="btn" disabled style="margin-top:16px;">Piano Attuale</button>' : '<button class="btn btn-primary" style="margin-top:16px;" onclick="setTier(\'plus\')">Attiva Plus</button>'}
+            </div>
+
+            <div class="tier-card ${state.user.tier === 'pro' ? 'active-tier' : ''}">
+                <div style="font-size:12px; color:var(--tint-purple); text-transform:uppercase; font-weight:600;">Livello 3</div>
+                <div class="tier-price">€5.99<span style="font-size:14px; color:var(--text-secondary); font-weight:normal;">/mese</span></div>
+                <ul class="feature-list">
+                    <li>Tutto del piano Plus</li>
+                    <li>Gruppi illimitati</li>
+                    <li>Export in PDF e Excel completi</li>
+                    <li>Funzionalità sbloccate al 100%</li>
+                </ul>
+                ${state.user.tier === 'pro' ? '<button class="btn" disabled style="margin-top:16px;">Piano Attuale</button>' : '<button class="btn" style="margin-top:16px; background:var(--tint-purple); color:white; border:none;" onclick="setTier(\'pro\')">Attiva Pro</button>'}
+            </div>
+        `;
+    }
+
+    // --- ACTIONS & MODALS LOGIC ---
+    function setTier(tier) {
+        state.user.tier = tier;
+        nav('subscription');
+    }
+
+    function sendChat(tripId) {
+        const input = document.getElementById('chat-input');
+        if(input.value.trim() === '') return;
+        
+        const now = new Date();
+        state.chat.push({
+            id: 'c' + Date.now(),
+            tripId: tripId,
+            userId: state.user.id,
+            text: input.value,
+            time: `${now.getHours()}:${now.getMinutes() < 10 ? '0' : ''}${now.getMinutes()}`
+        });
+        render();
+    }
+
+    function openModal(title, html) {
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-content').innerHTML = html;
+        document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.remove('active');
+    }
+
+    // CRUD: Viaggi
+    function openTripForm(tripId = null) {
+        const t = tripId ? state.trips.find(x => x.id === tripId) : null;
+        
+        const html = `
+            <div class="input-group">
+                <label class="input-label">Nome Viaggio</label>
+                <input type="text" id="frm-t-title" value="${t ? t.title : ''}" placeholder="Es. Weekend a Londra">
+            </div>
+            <div class="input-group" style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label class="input-label">Partenza</label>
+                    <input type="date" id="frm-t-start" value="${t ? t.start : ''}">
+                </div>
+                <div style="flex:1;">
+                    <label class="input-label">Ritorno</label>
+                    <input type="date" id="frm-t-end" value="${t ? t.end : ''}">
+                </div>
+            </div>
+            <div class="input-group" style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label class="input-label">Mezzo/Tipo</label>
+                    <select id="frm-t-type">
+                        <option value="volo" ${t?.type==='volo'?'selected':''}>Volo ✈️</option>
+                        <option value="camper" ${t?.type==='camper'?'selected':''}>Camper 🚐</option>
+                        <option value="auto" ${t?.type==='auto'?'selected':''}>Auto 🚗</option>
+                        <option value="walking" ${t?.type==='walking'?'selected':''}>A piedi 🥾</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label class="input-label">Icona</label>
+                    <input type="text" id="frm-t-cover" value="${t ? t.cover : '🌍'}" maxlength="2">
+                </div>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Budget Preventivato (€)</label>
+                <input type="number" id="frm-t-budget" value="${t ? t.budget : ''}" placeholder="0">
+            </div>
+            <button class="btn btn-primary" style="margin-top: 10px;" onclick="saveTrip('${tripId || ''}')">Salva Viaggio</button>
+        `;
+        openModal(t ? 'Modifica Viaggio' : 'Nuovo Viaggio', html);
+    }
+
+    function saveTrip(tripId) {
+        const title = document.getElementById('frm-t-title').value;
+        if (!title) return alert("Inserisci un titolo.");
+
+        const data = {
+            title: title,
+            start: document.getElementById('frm-t-start').value,
+            end: document.getElementById('frm-t-end').value,
+            type: document.getElementById('frm-t-type').value,
+            cover: document.getElementById('frm-t-cover').value || '🌍',
+            budget: Number(document.getElementById('frm-t-budget').value) || 0
+        };
+
+        if (tripId) {
+            const idx = state.trips.findIndex(x => x.id === tripId);
+            state.trips[idx] = { ...state.trips[idx], ...data };
+        } else {
+            state.trips.push({ id: 't' + Date.now(), desc: '', ...data });
+        }
+        
+        closeModal();
+        render();
+    }
+
+    function deleteTrip(tripId) {
+        if(confirm("Sei sicuro di voler eliminare questo viaggio? L'azione è irreversibile e i dati di Firebase verranno rimossi.")) {
+            state.trips = state.trips.filter(t => t.id !== tripId);
+            state.expenses = state.expenses.filter(e => e.tripId !== tripId);
+            nav('trips');
+        }
+    }
+
+    // CRUD: Spese
+    function openExpenseForm(tripId, expId = null) {
+        const e = expId ? state.expenses.find(x => x.id === expId) : null;
+        
+        const html = `
+            <div class="input-group">
+                <label class="input-label">Descrizione Spesa</label>
+                <input type="text" id="frm-e-desc" value="${e ? e.desc : ''}" placeholder="Es. Cena pizzeria">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Importo (€)</label>
+                <input type="number" id="frm-e-amount" value="${e ? e.amount : ''}" placeholder="0">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Pagato da</label>
+                <select id="frm-e-paidBy">
+                    ${DUMMY_USERS.map(u => `<option value="${u.id}" ${e?.paidBy === u.id ? 'selected' : ''}>${u.name}</option>`).join('')}
+                </select>
+            </div>
+            
+            <button class="btn btn-primary" style="margin-top: 20px;" onclick="saveExpense('${tripId}', '${expId || ''}')">Salva Spesa</button>
+            ${e ? `<button class="btn" style="margin-top: 10px; color: var(--tint-danger); border-color: transparent;" onclick="deleteExpense('${expId}')">Elimina Spesa</button>` : ''}
+        `;
+        openModal(e ? 'Modifica Spesa' : 'Aggiungi Spesa', html);
+    }
+
+    function saveExpense(tripId, expId) {
+        const desc = document.getElementById('frm-e-desc').value;
+        const amount = Number(document.getElementById('frm-e-amount').value);
+        if (!desc || amount <= 0) return alert("Inserisci descrizione e importo validi.");
+
+        const data = {
+            tripId: tripId,
+            desc: desc,
+            amount: amount,
+            paidBy: document.getElementById('frm-e-paidBy').value,
+            split: DUMMY_USERS.map(u => u.id) // Default split tra tutti
+        };
+
+        if (expId) {
+            const idx = state.expenses.findIndex(x => x.id === expId);
+            state.expenses[idx] = { ...state.expenses[idx], ...data };
+        } else {
+            state.expenses.push({ id: 'e' + Date.now(), ...data });
+        }
+        
+        closeModal();
+        render();
+    }
+
+    function deleteExpense(expId) {
+        if(confirm("Eliminare questa spesa?")) {
+            state.expenses = state.expenses.filter(e => e.id !== expId);
+            closeModal();
+            render();
+        }
+    }
+
+    // Avvio Iniziale
+    render();
+</script>
+
+</body>
+</html>
